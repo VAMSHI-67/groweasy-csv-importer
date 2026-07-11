@@ -24,8 +24,30 @@ export class GeminiProvider implements AIProvider {
     headers: string[],
     rows: Record<string, unknown>[]
   ): Promise<ExtractionResult> {
+    try {
+      return await this.extractWithModel("gemini-2.0-flash", headers, rows);
+    } catch (err: any) {
+      const errMsg = String(err.message || err);
+      if (
+        errMsg.includes("429") ||
+        errMsg.includes("quota") ||
+        errMsg.includes("Quota") ||
+        errMsg.includes("limit")
+      ) {
+        console.warn(`[GeminiProvider] gemini-2.0-flash failed with quota limit. Falling back to gemini-1.5-flash...`);
+        return await this.extractWithModel("gemini-1.5-flash", headers, rows);
+      }
+      throw err;
+    }
+  }
+
+  private async extractWithModel(
+    modelName: string,
+    headers: string[],
+    rows: Record<string, unknown>[]
+  ): Promise<ExtractionResult> {
     const model = this.client.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: modelName,
       systemInstruction: getSystemPrompt(),
       generationConfig: {
         responseMimeType: "application/json",
