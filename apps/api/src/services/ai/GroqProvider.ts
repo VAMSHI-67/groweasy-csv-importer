@@ -24,6 +24,30 @@ export class GroqProvider implements AIProvider {
     headers: string[],
     rows: Record<string, unknown>[]
   ): Promise<ExtractionResult> {
+    try {
+      return await this.extractWithModel("llama-3.3-70b-versatile", headers, rows);
+    } catch (err: any) {
+      const errMsg = String(err.message || err);
+      if (
+        errMsg.includes("429") ||
+        errMsg.includes("413") ||
+        errMsg.includes("rate_limit_exceeded") ||
+        errMsg.includes("limit") ||
+        errMsg.includes("Quota") ||
+        errMsg.includes("quota")
+      ) {
+        console.warn(`[GroqProvider] llama-3.3-70b-versatile rate limit or token limit hit. Falling back to llama-3.1-8b-instant...`);
+        return await this.extractWithModel("llama-3.1-8b-instant", headers, rows);
+      }
+      throw err;
+    }
+  }
+
+  private async extractWithModel(
+    modelName: string,
+    headers: string[],
+    rows: Record<string, unknown>[]
+  ): Promise<ExtractionResult> {
     const fewShotExamples = getFewShotExamples();
     const fewShotMessages: Groq.Chat.ChatCompletionMessageParam[] = [];
 
@@ -35,7 +59,7 @@ export class GroqProvider implements AIProvider {
     const userMessage = JSON.stringify({ headers, rows });
 
     const completion = await this.client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: modelName,
       messages: [
         { role: "system", content: getSystemPrompt() },
         ...fewShotMessages,

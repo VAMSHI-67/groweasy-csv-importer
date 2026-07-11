@@ -23,7 +23,15 @@ function isTransientError(error: unknown): boolean {
     const message = error.message.toLowerCase();
 
     // Rate limiting
-    if (message.includes("429") || message.includes("rate limit")) return true;
+    if (
+      message.includes("429") ||
+      message.includes("413") ||
+      message.includes("rate limit") ||
+      message.includes("rate_limit_exceeded") ||
+      message.includes("quota") ||
+      message.includes("limit")
+    )
+      return true;
 
     // Timeout
     if (message.includes("timeout") || message.includes("timed out")) return true;
