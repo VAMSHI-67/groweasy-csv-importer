@@ -1,0 +1,36 @@
+FROM node:20-alpine AS base
+
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# Copy workspace config
+COPY package.json pnpm-workspace.yaml ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/web/package.json apps/web/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY packages/shared packages/shared
+COPY apps/web apps/web
+
+# Build shared package first
+RUN pnpm --filter @groweasy/shared build
+
+# Build Next.js app
+RUN pnpm --filter @groweasy/web build
+
+# Production stage
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=base /app/apps/web/.next/standalone ./
+COPY --from=base /app/apps/web/.next/static ./.next/static
+COPY --from=base /app/apps/web/public ./public
+
+EXPOSE 3000
+CMD ["node", "server.js"]

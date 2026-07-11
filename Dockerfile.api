@@ -1,0 +1,39 @@
+FROM node:20-alpine AS base
+
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# Copy workspace config
+COPY package.json pnpm-workspace.yaml ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY packages/shared packages/shared
+COPY apps/api apps/api
+
+# Build shared package
+RUN pnpm --filter @groweasy/shared build
+
+# Build API
+RUN pnpm --filter @groweasy/api build
+
+# Production stage
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=base /app/apps/api/dist ./apps/api/dist
+COPY --from=base /app/apps/api/package.json ./apps/api/
+COPY --from=base /app/packages/shared/dist ./packages/shared/dist
+COPY --from=base /app/packages/shared/package.json ./packages/shared/
+
+EXPOSE 3001
+CMD ["node", "apps/api/dist/index.js"]
