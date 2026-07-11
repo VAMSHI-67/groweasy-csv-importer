@@ -26,6 +26,7 @@ export class GeminiProvider implements AIProvider {
   ): Promise<ExtractionResult> {
     const model = this.client.getGenerativeModel({
       model: "gemini-2.0-flash",
+      systemInstruction: getSystemPrompt(),
       generationConfig: {
         responseMimeType: "application/json",
         temperature: 0.1,
@@ -49,7 +50,6 @@ export class GeminiProvider implements AIProvider {
     const userMessage = JSON.stringify({ headers, rows });
 
     const chat = model.startChat({
-      systemInstruction: getSystemPrompt(),
       history: fewShotMessages,
     });
 
